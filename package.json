@@ -1,0 +1,29 @@
+{
+  "name": "RF24SN",
+  "version": "0.1.0",
+  "description": "Server for RF24SN. Connects sensors/actuators to MQTT broker. Simpler than MQTT-SN. Runs on nRF24L01 hardware.",
+  "keywords": ["RF24SN", "MQTT", "nRF24l01", "MQTT-SN"],
+  "homepage": "https://github.com/VaclavSynacek/RF24SN",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": {
+    "name": "Vaclav Synacek",
+    "url": "http://vaclav.synacek.com/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/VaclavSynacek/RF24SN_nodejs_server.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "mqtt": "^0.3.11",
+    "nrf": "^0.8.1",
+    "struct-fu": "^0.9.1"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  }
+  "preferGlobal": true
+}
