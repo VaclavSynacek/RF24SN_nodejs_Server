@@ -4,9 +4,34 @@
 /*jslint node: true */
 
 var util = require('util');
+var url = require('url');
 var _ = require('struct-fu');
 var nrf = require('nrf');
-var mqttClient = require('mqtt').createClient(1883, 'localhost');
+var mqtt = require('mqtt');
+var argv = require('yargs')
+    .usage('Communication gateway between nRF24L01 network and MQTT broker.\nUsage: $0')
+    .example('$0', 'run with the default configuration')
+    .example('$0 -b mqtt://localhost:1883 -spi /dev/spidev0.0 -ce 25 -irq 24', 'run with all parameters specified')
+	.alias('b', 'broker')
+	.alias('?', 'help')
+	.describe('b', 'URL of the MQTT broker')
+	.describe('spi', 'device file for the SPI interface')
+	.describe('ce', 'GPIO pin for the CE')
+	.describe('irq', 'GPIO pin for the IRQ')
+    .default({ b : 'mqtt://localhost:1883', spi : '/dev/spidev0.0', ce: 25, irq: 24 })
+    .argv
+;
+
+
+var mqttUrl = url.parse(process.env.MQTT_BROKER_URL || argv.b);
+var mqttAuth = (mqttUrl.auth || ':').split(':');
+
+var mqttClient = mqtt.createClient(mqttUrl.port, mqttUrl.hostname, {
+  username: mqttAuth[0],
+  password: mqttAuth[1]
+});
+
+
 
 var messageStore = [];
 
@@ -28,9 +53,8 @@ var RawPacket = _.struct([
 ]); 
 
 
-// general initialization
-// TODO load these from arguments or config file
-var radio = nrf.connect("/dev/spidev0.0", 25, 24);
+// nRF24l01 general initialization
+var radio = nrf.connect(argv.spi, argv.ce, argv.irq);
 radio.channel(0x4c).dataRate('1Mbps').crcBytes(2).autoRetransmit({
 	count: 15,
 	delay: 500
@@ -56,9 +80,6 @@ radio.begin(function() {
 		if (packet.packetType == 1) processPublishPacket(packet);
 		else if (packet.packetType == 3) processRequestPacket(packet);
 		else console.log("wrong packet type received");
-
-		//console.log('hot: '+ util.inspect(packet));
-
 	});
 
 	listeningPipe.on('error', function(err) {
@@ -85,12 +106,10 @@ var processRequestPacket = function(packet) {
 
 var sendPacket = function(packet) {
 		if (!replyPipes[packet.nodeId]) {
-			console.log("adding pipe for node " + packet.nodeId);
 			replyPipes[packet.nodeId] = radio.openPipe('tx', 0xF0F0F0F000 + packet.nodeId, {
 				size: RawPacket.size,
 				autoAck: false
 			});
-			console.log("now having: " + util.inspect(replyPipes));
 		}
 		replyPipes[packet.nodeId].write(RawPacket.bytesFromValue(packet));
 	};
