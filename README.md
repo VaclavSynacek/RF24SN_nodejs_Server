@@ -35,7 +35,8 @@ The SPI wires (yellow) have to go exactly to their counterparts:
 * MISO to MISO
 * SCK to SC(L)K
 
-The VCC (red) has to go to any **3.3V** pin. Connecting it to 5V pin will damage the nRF24L01
+The VCC (red) has to go to any **3.3V** pin. Connecting it to 5V pin will damage the nRF24L01.
+
 GRN (black) can go to any ground.
 
 The CSN (blue) has to go to either CS0 or CS1. This determines the spi device. To use the /dev/spidev0.**0** use the CS **0**.
