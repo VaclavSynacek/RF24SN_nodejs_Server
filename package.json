@@ -1,5 +1,5 @@
 {
-  "name": "RF24SN",
+  "name": "rf24sn",
   "version": "0.1.0",
   "description": "Server for RF24SN. Connects sensors/actuators to MQTT broker. Simpler than MQTT-SN. Runs on nRF24L01 hardware.",
   "keywords": ["RF24SN", "MQTT", "nRF24l01", "MQTT-SN"],
