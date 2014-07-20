@@ -24,3 +24,20 @@ or if the above defaults are ok any or all can be omited:
 sudo rf24sn
 ```
 The sudo is required in standard Raspbian instalation unless access to /dev/spidevX.X and the GPIO pins has been granted to other user (via [quick2wire](https://github.com/quick2wire/quick2wire-gpio-admin) or similar).
+
+
+## Wiring
+
+![Wiring](https://raw.githubusercontent.com/VaclavSynacek/RF24SN_nodejs_Server/master/nRF24L01-RPi.png "Wiring")
+
+The SPI wires (yellow) have to go exactly to their counterparts:
+* MOSI to MOSI
+* MISO to MISO
+* SCK to SC(L)K
+
+The VCC (red) has to go to any **3.3V** pin. Connecting it to 5V pin will damage the nRF24L01
+GRN (black) can go to any ground.
+
+The CSN (blue) has to go to either CS0 or CS1. This determines the spi device. To use the /dev/spidev0.**0** use the CS **0**.
+
+The CE and IRQ (cyan) can go to any GPIO pin. The diagram follows the rf24sn defaults - CE 25, IRQ 24.
