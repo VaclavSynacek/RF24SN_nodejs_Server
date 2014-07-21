@@ -17,12 +17,20 @@ npm uninstall rf24sn --global
 ```
 Usage:
 ```Shell
-sudo rf24sn -b mqtt://localhost:1883 -spi /dev/spidev0.0 -ce 25 -irq 24
+sudo rf24sn -b mqtt://localhost:1883 -spi /dev/spidev0.0 -ce 25 -irq 24 -vvv
 ```
 or if the above defaults are ok any or all can be omited:
 ```Shell
 sudo rf24sn
 ```
+
+The -v parameter sets logging level:
+* (no v) : almost silent, only errors and warnings
+* -v : only received radio packets are reported
+* -vv : received radio packets and MQTT communication is reported
+* -vvv : debug info
+* -vvvv : silly amount of data including underlaying nrf pipes statuses
+
 The sudo is required in standard Raspbian instalation unless access to /dev/spidevX.X and the GPIO pins has been granted to other user (via [quick2wire](https://github.com/quick2wire/quick2wire-gpio-admin) or similar).
 
 

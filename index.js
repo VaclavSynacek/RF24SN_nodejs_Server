@@ -3,6 +3,7 @@
 "use strict";
 /*jslint node: true */
 
+var winston = require('winston');
 var util = require('util');
 var url = require('url');
 var _ = require('struct-fu');
@@ -14,14 +15,21 @@ var argv = require('yargs')
     .example('$0 -b mqtt://localhost:1883 -spi /dev/spidev0.0 -ce 25 -irq 24', 'run with all parameters specified')
 	.alias('b', 'broker')
 	.alias('?', 'help')
+	.alias('v', 'verbose')
+	.count('verbose')
 	.describe('b', 'URL of the MQTT broker')
 	.describe('spi', 'device file for the SPI interface')
 	.describe('ce', 'GPIO pin for the CE')
 	.describe('irq', 'GPIO pin for the IRQ')
     .default({ b : 'mqtt://localhost:1883', spi : '/dev/spidev0.0', ce: 25, irq: 24 })
-    .argv
-;
+    .argv;
 
+var loggingLevels = ['warn', 'info', 'verbose', 'debug', 'silly'];
+var loggingLevel = loggingLevels[argv.verbose];
+var logger = new (winston.Logger)({
+    transports: [new (winston.transports.Console)({ level: loggingLevel, colorize: true })]
+  });  
+winston.debug('logging level set to ' + loggingLevel);
 
 var mqttUrl = url.parse(process.env.MQTT_BROKER_URL || argv.b);
 var mqttAuth = (mqttUrl.auth || ':').split(':');
@@ -37,7 +45,9 @@ var messageStore = [];
 
 mqttClient.subscribe('RF24SN/out/+/+');
 mqttClient.on('message', function(topic, message) {
+	logger.verbose('received MQTT message ' + util.inspect({topic: topic, message: message}));
 	messageStore[topic] = parseFloat(message);
+	logger.silly('now the messageStore contains ' + util.inspect(messageStore));
 });
 
 
@@ -71,33 +81,36 @@ radio.begin(function() {
 		autoAck: false
 	});
 
-	console.log("started");
-
 	listeningPipe.on('data', function(p) {
 		var packet = RawPacket.valueFromBytes(p);
 
 		// decide if the packet contains a value reported by client node or a request for a value
 		if (packet.packetType == 1) processPublishPacket(packet);
 		else if (packet.packetType == 3) processRequestPacket(packet);
-		else console.log("wrong packet type received");
+		else logger.warn('wrong packet type received ' + util.isnpect(packet) );
 	});
 
 	listeningPipe.on('error', function(err) {
-		console.err('got error: ' + util.inspect(err));
+		logger.err('got nrf error',  err);
 	});
+	
+	logger.debug('radio initialized');
 });
 
 
 var processPublishPacket = function(packet) {
-		console.log('publish: ' + util.inspect(packet));
+		logger.info('publish packet received ' + util.inspect(packet) );
 		packet.packetType = 2;
 		setTimeout(sendPacket(packet), 50);
-		mqttClient.publish('RF24SN/in/' + packet.nodeId.toString() + '/' + packet.sensorId.toString(), packet.value.toString());
+		var topic = 'RF24SN/in/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
+		var message = packet.value.toString();
+		mqttClient.publish(topic, message);
+		logger.debug('published MQTT message ' + util.inspect({topic: topic, message: message}) );
 	};
 
 var processRequestPacket = function(packet) {
 
-		console.log('request: ' + util.inspect(packet));
+		logger.info('request packet received ' + util.inspect(packet) );
 		packet.packetType = 4;
 		var topic = 'RF24SN/out/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
 		packet.value = messageStore[topic];
@@ -106,10 +119,12 @@ var processRequestPacket = function(packet) {
 
 var sendPacket = function(packet) {
 		if (!replyPipes[packet.nodeId]) {
+			logger.silly('opening new TX pipe for new client ' + packet.nodeId);
 			replyPipes[packet.nodeId] = radio.openPipe('tx', 0xF0F0F0F000 + packet.nodeId, {
 				size: RawPacket.size,
 				autoAck: false
 			});
+			logger.silly('replyPipes now contain ' + util.inspect(replyPipes) );
 		}
 		replyPipes[packet.nodeId].write(RawPacket.bytesFromValue(packet));
 	};
