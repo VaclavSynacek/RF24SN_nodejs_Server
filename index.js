@@ -99,9 +99,9 @@ var processRequestPacket = function(packet) {
 
 		console.log('request: ' + util.inspect(packet));
 		packet.packetType = 4;
-		setTimeout(sendPacket(packet), 50);
 		var topic = 'RF24SN/out/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
 		packet.value = messageStore[topic];
+		setTimeout(sendPacket(packet), 50);
 	};
 
 var sendPacket = function(packet) {
