@@ -87,7 +87,7 @@ radio.begin(function() {
 		// decide if the packet contains a value reported by client node or a request for a value
 		if (packet.packetType == 1) processPublishPacket(packet);
 		else if (packet.packetType == 3) processRequestPacket(packet);
-		else logger.warn('wrong packet type received ' + util.isnpect(packet) );
+		else logger.warn('wrong packet type received ' + util.inspect(packet) );
 	});
 
 	listeningPipe.on('error', function(err) {
