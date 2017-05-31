@@ -44,6 +44,7 @@ var mqttClient = mqtt.createClient(mqttUrl.port, mqttUrl.hostname, {
 var messageStore = [];
 
 mqttClient.subscribe('RF24SN/out/+/+');
+mqttClient.subscribe('broadcast/+');
 mqttClient.on('message', function(topic, message) {
 	logger.verbose('received MQTT message ' + util.inspect({topic: topic, message: message}));
 	messageStore[topic] = parseFloat(message);
@@ -59,7 +60,7 @@ var RawPacket = _.struct([
 	_.uint8("sensorId"),	// sensor id (unique within a client node)
 	_.uint8("nodeId"),		// client node id (unique within one RF24Star network));
 	_.uint8("reserved"),	// not used
-	_.uint8("packetType")	// 0=reserved, 1=publish, 2=puback, 3=request, 4=response
+	_.uint8("packetType")	// 0=reserved, 1=publish, 2=puback, 3=request, 4=response, 5=broadcast
 ]); 
 
 
@@ -86,7 +87,7 @@ radio.begin(function() {
 
 		// decide if the packet contains a value reported by client node or a request for a value
 		if (packet.packetType == 1) processPublishPacket(packet);
-		else if (packet.packetType == 3) processRequestPacket(packet);
+		else if (packet.packetType == 3 || packet.packetType == 5) processRequestPacket(packet);
 		else logger.warn('wrong packet type received ' + util.inspect(packet) );
 	});
 
@@ -109,12 +110,20 @@ var processPublishPacket = function(packet) {
 	};
 
 var processRequestPacket = function(packet) {
+		if(packet.packetType == 3){
+			logger.info('request packet received ' + util.inspect(packet) );
+			packet.packetType = 4;
+			var topic = 'RF24SN/out/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
+			packet.value = messageStore[topic];
+			setTimeout(function() {sendPacket(packet)}, 50);
+		}else if(packet.packetType == 5){
+			logger.info('broadcast packet received ' + util.inspect(packet) );
+			packet.packetType = 4;
+			var topic = 'broadcast/' + packet.sensorId.toString();
+			packet.value = messageStore[topic];
+			setTimeout(function() {sendPacket(packet)}, 50);
+		}
 
-		logger.info('request packet received ' + util.inspect(packet) );
-		packet.packetType = 4;
-		var topic = 'RF24SN/out/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
-		packet.value = messageStore[topic];
-		setTimeout(function() {sendPacket(packet)}, 50);
 	};
 
 var sendPacket = function(packet) {
