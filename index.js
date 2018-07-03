@@ -101,7 +101,7 @@ radio.begin(function() {
 var processPublishPacket = function(packet) {
 		logger.info('publish packet received ' + util.inspect(packet) );
 		packet.packetType = 2;
-		setTimeout(sendPacket(packet), 50);
+		setTimeout(function(){sendPacket(packet);}, 50);
 		var topic = 'RF24SN/in/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
 		var message = packet.value.toString();
 		mqttClient.publish(topic, message);
@@ -114,7 +114,7 @@ var processRequestPacket = function(packet) {
 		packet.packetType = 4;
 		var topic = 'RF24SN/out/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
 		packet.value = messageStore[topic];
-		setTimeout(sendPacket(packet), 50);
+		setTimeout(function(){sendPacket(packet);}, 50);
 	};
 
 var sendPacket = function(packet) {
