@@ -62,7 +62,24 @@ var RawPacket = _.struct([
 	_.uint8("packetType")	// 0=reserved, 1=publish, 2=puback, 3=request, 4=response
 ]); 
 
+//this section deals with the radio itself
+//first vars for all the pipes/addresses
+var listeningPipe;
+var replyPipes = [];
+
 //the actual sending and recieving logic functions which are later called by nrf event handlers
+var sendPacket = function(packet) {
+		if (!replyPipes[packet.nodeId]) {
+			logger.silly('opening new TX pipe for new client ' + packet.nodeId);
+			replyPipes[packet.nodeId] = radio.openPipe('tx', 0xF0F0F0F000 + packet.nodeId, {
+				size: RawPacket.size,
+				autoAck: false
+			});
+			logger.silly('replyPipes now contain ' + util.inspect(replyPipes) );
+		}
+		replyPipes[packet.nodeId].write(RawPacket.bytesFromValue(packet));
+	};
+
 var processPublishPacket = function(packet) {
 		logger.info('publish packet received ' + util.inspect(packet) );
 		packet.packetType = 2;
@@ -82,17 +99,6 @@ var processRequestPacket = function(packet) {
 		setTimeout(function(){sendPacket(packet);}, 50);
 	};
 
-var sendPacket = function(packet) {
-		if (!replyPipes[packet.nodeId]) {
-			logger.silly('opening new TX pipe for new client ' + packet.nodeId);
-			replyPipes[packet.nodeId] = radio.openPipe('tx', 0xF0F0F0F000 + packet.nodeId, {
-				size: RawPacket.size,
-				autoAck: false
-			});
-			logger.silly('replyPipes now contain ' + util.inspect(replyPipes) );
-		}
-		replyPipes[packet.nodeId].write(RawPacket.bytesFromValue(packet));
-	};
 
 // nRF24l01 general initialization
 var radio = nrf.connect(argv.spi, argv.ce, argv.irq);
@@ -101,11 +107,8 @@ radio.channel(0x4c).dataRate('1Mbps').crcBytes(2).autoRetransmit({
 	delay: 500
 });
 
-var listeningPipe;
-var replyPipes = [];
 
-
-//nRF24l01 listening handlers
+//nRF24l01 listening handlers - only after this does the radio actually start to process packets
 radio.begin(function() {
 	var listeningPipe = radio.openPipe('rx', 0xF0F0F0F000, {
 		size: RawPacket.size,
@@ -127,6 +130,4 @@ radio.begin(function() {
 	
 	logger.debug('radio initialized');
 });
-
-
 
