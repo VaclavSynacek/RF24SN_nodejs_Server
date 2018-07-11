@@ -62,6 +62,37 @@ var RawPacket = _.struct([
 	_.uint8("packetType")	// 0=reserved, 1=publish, 2=puback, 3=request, 4=response
 ]); 
 
+//the actual sending and recieving logic functions which are later called by nrf event handlers
+var processPublishPacket = function(packet) {
+		logger.info('publish packet received ' + util.inspect(packet) );
+		packet.packetType = 2;
+		setTimeout(function(){sendPacket(packet);}, 50);
+		var topic = 'RF24SN/in/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
+		var message = packet.value.toString();
+		mqttClient.publish(topic, message);
+		logger.debug('published MQTT message ' + util.inspect({topic: topic, message: message}) );
+	};
+
+var processRequestPacket = function(packet) {
+
+		logger.info('request packet received ' + util.inspect(packet) );
+		packet.packetType = 4;
+		var topic = 'RF24SN/out/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
+		packet.value = messageStore[topic];
+		setTimeout(function(){sendPacket(packet);}, 50);
+	};
+
+var sendPacket = function(packet) {
+		if (!replyPipes[packet.nodeId]) {
+			logger.silly('opening new TX pipe for new client ' + packet.nodeId);
+			replyPipes[packet.nodeId] = radio.openPipe('tx', 0xF0F0F0F000 + packet.nodeId, {
+				size: RawPacket.size,
+				autoAck: false
+			});
+			logger.silly('replyPipes now contain ' + util.inspect(replyPipes) );
+		}
+		replyPipes[packet.nodeId].write(RawPacket.bytesFromValue(packet));
+	};
 
 // nRF24l01 general initialization
 var radio = nrf.connect(argv.spi, argv.ce, argv.irq);
@@ -98,33 +129,4 @@ radio.begin(function() {
 });
 
 
-var processPublishPacket = function(packet) {
-		logger.info('publish packet received ' + util.inspect(packet) );
-		packet.packetType = 2;
-		setTimeout(function(){sendPacket(packet);}, 50);
-		var topic = 'RF24SN/in/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
-		var message = packet.value.toString();
-		mqttClient.publish(topic, message);
-		logger.debug('published MQTT message ' + util.inspect({topic: topic, message: message}) );
-	};
 
-var processRequestPacket = function(packet) {
-
-		logger.info('request packet received ' + util.inspect(packet) );
-		packet.packetType = 4;
-		var topic = 'RF24SN/out/' + packet.nodeId.toString() + '/' + packet.sensorId.toString();
-		packet.value = messageStore[topic];
-		setTimeout(function(){sendPacket(packet);}, 50);
-	};
-
-var sendPacket = function(packet) {
-		if (!replyPipes[packet.nodeId]) {
-			logger.silly('opening new TX pipe for new client ' + packet.nodeId);
-			replyPipes[packet.nodeId] = radio.openPipe('tx', 0xF0F0F0F000 + packet.nodeId, {
-				size: RawPacket.size,
-				autoAck: false
-			});
-			logger.silly('replyPipes now contain ' + util.inspect(replyPipes) );
-		}
-		replyPipes[packet.nodeId].write(RawPacket.bytesFromValue(packet));
-	};
